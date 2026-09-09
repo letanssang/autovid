@@ -51,6 +51,23 @@ pre.code {
   white-space: pre-wrap;
 }
 
+.diagram {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+/* The model-generated svg's own width/height (if any) are overridden here so
+   it always fills the slide, regardless of what it emitted — see
+   prompts/en/educational/slide_content.md's diagram schema. */
+.diagram svg {
+  width: 100%;
+  height: auto;
+  max-height: 640px;
+}
+
 .diagram-caption {
   font-size: 36px;
   color: #b0b3bd;
@@ -85,4 +102,19 @@ pre.code {
 .compare-col li::before {
   content: "— ";
   color: #7c9cff;
+}
+
+.quote-mark {
+  font-size: 160px;
+  font-weight: 800;
+  color: #7c9cff;
+  line-height: 1;
+  margin-bottom: 16px;
+}
+
+.quote {
+  font-size: 64px;
+  font-weight: 600;
+  line-height: 1.3;
+  max-width: 1500px;
 }

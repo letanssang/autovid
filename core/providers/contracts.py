@@ -15,6 +15,21 @@ class HealthStatus:
     detail: str = ""
 
 
+class ManualAssetPending(Exception):
+    """Raised by a manual/* provider's generate() when it wrote generation
+    instructions to disk instead of producing a real asset, and is waiting on
+    a human to create the asset externally and feed it back via
+    core.manual_assets. Not a failure — callers must catch this per-item and
+    let the rest of the batch/run continue, not abort the whole stage."""
+
+    def __init__(self, beat_id: str, prompt_path: str, expected_path: str, capability: str = "image"):
+        self.beat_id = beat_id
+        self.prompt_path = prompt_path
+        self.expected_path = expected_path
+        self.capability = capability
+        super().__init__(f"manual {capability} asset pending for '{beat_id}'")
+
+
 # ---------------------------------------------------------------- text ----
 
 @dataclass

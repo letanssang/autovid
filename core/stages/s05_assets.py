@@ -3,12 +3,18 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from core.providers.contracts import ImageRequest, SlideRequest, TTSRequest, TTSResult
+from core.providers.contracts import (
+    ImageRequest,
+    ManualAssetPending,
+    SlideRequest,
+    TTSRequest,
+    TTSResult,
+)
 from core.providers.registry import Registry
 
 STAGE = "05_assets"
 
-SLIDE_TEMPLATES = {"title", "diagram", "code", "comparison"}
+SLIDE_TEMPLATES = {"title", "diagram", "code", "comparison", "quote"}
 
 
 def run(project_root: Path, config: dict) -> None:
@@ -18,6 +24,8 @@ def run(project_root: Path, config: dict) -> None:
     tts_chain = _tts_chain(registry)
     slides_provider = registry.resolve("slides", stage=STAGE)
     image_provider = registry.resolve("image", stage=STAGE)
+    image_options = registry.options("image")
+    style_anchor = image_options.get("style_anchor", "")
 
     script = json.loads((project_root / "03_script" / "script.json").read_text())
     visual_plan = json.loads((project_root / "04_visual_plan" / "visual_plan.json").read_text())
@@ -49,6 +57,7 @@ def run(project_root: Path, config: dict) -> None:
 
     visual_manifest = []
     degraded_slides = []
+    manual_pending = []
     for beat in visual_plan["beats"]:
         beat_id = f"{beat['section_id']}-{beat['beat_index']}"
         vtype = beat["visual_type"]
@@ -58,23 +67,35 @@ def run(project_root: Path, config: dict) -> None:
 
         if vtype == "ai_image":
             out_path = images_dir / f"{beat_id}.png"
-            result = image_provider.generate(ImageRequest(
-                intent="metaphor",
-                subject=beat["text"],
-                maps_to=beat["text"],
-                style_anchor=config.get("topic", ""),
-                out_path=str(out_path),
-            ))
+            try:
+                result = image_provider.generate(ImageRequest(
+                    intent="metaphor",
+                    subject=beat["text"],
+                    maps_to=beat["text"],
+                    style_anchor=style_anchor,
+                    out_path=str(out_path),
+                ))
+            except ManualAssetPending as e:
+                manual_pending.append({
+                    "beat_id": e.beat_id,
+                    "prompt_path": e.prompt_path,
+                    "expected_path": e.expected_path,
+                    "text": beat["text"],
+                })
+                continue
             visual_manifest.append({"beat_id": beat_id, "type": "ai_image", "asset_path": result.image_path})
         else:
-            # b_roll has no real footage source yet (see plan/phase-4), so it
-            # renders as a "title" slide with the beat's own line — every beat
-            # on the timeline must resolve to a real asset (plan/phase-3 §3.2),
-            # never `None`, or audio/video drift accumulates in s06_render.
-            template = vtype if vtype in SLIDE_TEMPLATES else "title"
+            # Every beat on the timeline must resolve to a real asset (plan/phase-3
+            # §3.2), never `None`, or audio/video drift accumulates in s06_render.
+            # b_roll renders as a "quote" slide pulled from the beat's own
+            # narration (plan/phase-4-right-visuals.md §4.3 — $0 cost, no
+            # copyright risk, unlike a stock-image library or spending the
+            # ai_image budget on what's usually the most common type).
+            template = "quote" if vtype == "b_roll" else (vtype if vtype in SLIDE_TEMPLATES else "title")
+            content = beat.get("slide_content") or {"title": beat["text"]}
             out_path = slides_dir / f"{beat_id}.png"
             result = slides_provider.render(SlideRequest(
-                template=template, content={"title": beat["text"]}, out_path=str(out_path), locale=locale,
+                template=template, content=content, out_path=str(out_path), locale=locale,
             ))
             visual_manifest.append({"beat_id": beat_id, "type": vtype, "asset_path": result.image_path})
             if not result.ok:
@@ -85,6 +106,7 @@ def run(project_root: Path, config: dict) -> None:
         "visuals": visual_manifest,
     }, indent=2))
     (out_dir / "slide_render_status.json").write_text(json.dumps({"degraded": degraded_slides}, indent=2))
+    (out_dir / "manual_pending.json").write_text(json.dumps({"pending": manual_pending}, indent=2))
 
 
 def _tts_chain(registry: Registry) -> list:

@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import html
 from pathlib import Path
+from urllib.parse import quote
 
 import yaml
-from fastapi import FastAPI, Form
+from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from core import manual_assets
 from core.env import load_env
+from core.providers.registry import BudgetExceeded
 from core.state import GATED_STAGES, STAGES, ProjectState
 
 load_env()
@@ -37,9 +40,11 @@ def index() -> str:
             f"{' (approved)' if s in GATED_STAGES and state.is_approved(s) else ''}</td>"
             for s in STAGES
         )
+        pending_count = len(manual_assets.list_pending(p))
+        manual_link = f" [<a href='/projects/{p.name}/manual-assets'>manual assets ({pending_count})</a>]" if pending_count else ""
         rows.append(
             f"<tr><td><a href='/projects/{p.name}'>{p.name}</a> "
-            f"[<a href='/projects/{p.name}/config'>config</a>]</td>{cells}</tr>"
+            f"[<a href='/projects/{p.name}/config'>config</a>]{manual_link}</td>{cells}</tr>"
         )
 
     header = "".join(f"<th>{s}</th>" for s in STAGES)
@@ -154,3 +159,84 @@ def project_config_set(
 
     path.write_text(yaml.dump(config, sort_keys=False))
     return RedirectResponse(f"/projects/{name}/config", status_code=303)
+
+
+def _project_root(name: str) -> Path | None:
+    root = PROJECTS_DIR / name
+    return root if (root / "project.yaml").exists() else None
+
+
+@app.get("/projects/{name}/manual-assets", response_class=HTMLResponse)
+def manual_assets_page(name: str, error: str = "") -> HTMLResponse:
+    root = _project_root(name)
+    if root is None:
+        return HTMLResponse(f"<p>No project '{html.escape(name)}'</p>", status_code=404)
+
+    pending = manual_assets.list_pending(root)
+    sections = []
+    for item in pending:
+        beat_id = item["beat_id"]
+        prompt_text = html.escape(manual_assets.read_prompt(root, beat_id))
+        sections.append(
+            f"<fieldset><legend>{html.escape(beat_id)}</legend>"
+            f"<p><em>{html.escape(item.get('text', ''))}</em></p>"
+            f"<form method='post' action='/projects/{name}/manual-assets/{beat_id}/prompt'>"
+            f"<textarea name='text' rows='4' cols='80'>{prompt_text}</textarea><br>"
+            f"<button type='submit'>Save prompt</button>"
+            f"</form>"
+            f"<form method='post' action='/projects/{name}/manual-assets/{beat_id}/improve'>"
+            f"<label>AI-improve instruction "
+            f"<input name='instruction' size='60' placeholder='e.g. make it more vivid, add warm colors'></label> "
+            f"<button type='submit'>Improve with AI</button>"
+            f"</form>"
+            f"<form method='post' action='/projects/{name}/manual-assets/{beat_id}/upload' enctype='multipart/form-data'>"
+            f"<label>Upload finished image <input type='file' name='file' accept='image/png'></label> "
+            f"<button type='submit'>Upload</button>"
+            f"</form>"
+            f"<p>Expected path: <code>{html.escape(item.get('expected_path', ''))}</code></p>"
+            f"</fieldset>"
+        )
+
+    error_html = f"<p style='color:red'>{html.escape(error)}</p>" if error else ""
+    body = "".join(sections) or "<p>No pending manual assets.</p>"
+    return HTMLResponse(
+        "<html><head><title>AutoVid manual assets</title></head><body>"
+        f"<h1>Manual assets — {html.escape(name)}</h1>"
+        f"<p><a href='/'>&larr; projects</a></p>"
+        + error_html
+        + body
+        + "</body></html>"
+    )
+
+
+@app.post("/projects/{name}/manual-assets/{beat_id}/prompt")
+def manual_assets_set_prompt(name: str, beat_id: str, text: str = Form(...)) -> RedirectResponse:
+    root = _project_root(name)
+    if root is not None:
+        manual_assets.write_prompt(root, beat_id, text)
+    return RedirectResponse(f"/projects/{name}/manual-assets", status_code=303)
+
+
+@app.post("/projects/{name}/manual-assets/{beat_id}/improve")
+def manual_assets_improve(name: str, beat_id: str, instruction: str = Form(...)) -> RedirectResponse:
+    root = _project_root(name)
+    if root is None:
+        return RedirectResponse(f"/projects/{name}/manual-assets", status_code=303)
+    try:
+        manual_assets.improve_prompt(root, beat_id, instruction)
+    except (BudgetExceeded, ValueError) as e:
+        return RedirectResponse(f"/projects/{name}/manual-assets?error={quote(str(e))}", status_code=303)
+    return RedirectResponse(f"/projects/{name}/manual-assets", status_code=303)
+
+
+@app.post("/projects/{name}/manual-assets/{beat_id}/upload")
+async def manual_assets_upload(name: str, beat_id: str, file: UploadFile = File(...)) -> RedirectResponse:  # noqa: B008 — FastAPI's own idiom for file uploads
+    root = _project_root(name)
+    if root is None:
+        return RedirectResponse(f"/projects/{name}/manual-assets", status_code=303)
+    try:
+        data = await file.read()
+        manual_assets.import_asset(root, beat_id, data)
+    except ValueError as e:
+        return RedirectResponse(f"/projects/{name}/manual-assets?error={quote(str(e))}", status_code=303)
+    return RedirectResponse(f"/projects/{name}/manual-assets", status_code=303)

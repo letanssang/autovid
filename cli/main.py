@@ -8,6 +8,7 @@ from pathlib import Path
 import typer
 import yaml
 
+from core import manual_assets
 from core.env import load_env
 from core.providers.registry import BudgetExceeded
 from core.stages import STAGE_RUNNERS
@@ -157,6 +158,19 @@ def run(
                         f"  warning: {len(degraded)} slide(s) rendered as empty PNGs — see {status_path}",
                         fg=typer.colors.YELLOW,
                     )
+
+            pending = manual_assets.list_pending(root)
+            if pending:
+                typer.secho(
+                    f"  {len(pending)} beat(s) need a manually-created image before rendering can continue:",
+                    fg=typer.colors.YELLOW,
+                )
+                for item in pending:
+                    typer.echo(f"    - {item['beat_id']}")
+                typer.echo(
+                    f"  Run `autovid ui` and open http://127.0.0.1:8000/projects/{project}/manual-assets"
+                )
+                break
 
         if stage == "06_render":
             status_path = root / "06_render" / "render_status.json"

@@ -35,7 +35,7 @@ VENDOR_MODULES = {
         "local": "local_fake",
     },
     "tts": {"google": "google_chirp", "elevenlabs": "elevenlabs", "piper": "piper", "edge": "edge", "local": "local_fake"},
-    "image": {"gemini": "nano_banana", "google": "imagen", "flux": "flux", "sdxl": "sdxl_local"},
+    "image": {"gemini": "nano_banana", "google": "imagen", "flux": "flux", "sdxl": "sdxl_local", "manual": "manual"},
     "video_clip": {"veo": "veo", "kling": "kling"},
     "slides": {"local": "html_renderer", "notebooklm": "notebooklm"},
     "publish": {"youtube": "youtube", "local": "local_only"},

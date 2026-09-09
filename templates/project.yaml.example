@@ -89,8 +89,20 @@ providers:
     # api_key_env names a variable in .env — the raw key never goes in this file.
   image:
     default: null
-    options: { batch: true, resolution: "1920x1080" }
+    options:
+      batch: true
+      resolution: "1920x1080"
+      # A fixed, video-wide style so ~15 separately-generated ai_image beats
+      # still read as one coherent video (plan/phase-4-right-visuals.md §4.4)
+      # rather than each beat picking its own random style:
+      style_anchor: "flat vector illustration, muted color palette, dark background"
     fallback: []
+    # vendor "gemini" = Gemini image generation ("Nano Banana") via the Gemini
+    # API. This is the phase-4 default for real ai_image beats — $0.0168/image
+    # in batch mode, $0.0336 otherwise (see core/providers/pricing.yaml):
+    #   default: gemini/gemini-3.1-flash-lite-image
+    #   options: { batch: true, resolution: "1920x1080", style_anchor: "...", api_key_env: GEMINI_API_KEY }
+    # api_key_env names a variable in .env — the raw key never goes in this file.
   video_clip:
     default: null
   slides:
