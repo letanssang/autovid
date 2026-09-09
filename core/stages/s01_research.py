@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
-from core.prompts import render_prompt
+from core.prompts import parse_json_response, render_prompt
 from core.providers.contracts import ResearchQuery, TextRequest
 from core.providers.registry import Registry
 
 STAGE = "01_research"
 
-# Fixed angle set for the educational format. Kept here (not in a prompt file)
-# because it also drives 02_outline's chapter structure.
-RESEARCH_ANGLES = [
+# Safety net for _propose_angles: used when the model's dynamic angle
+# proposal fails to parse or returns too few usable angles — see
+# plan/phase-5-length-and-flow.md §5.1 ("giữ 5 angle hiện tại làm fallback").
+FALLBACK_ANGLES = [
     "overview",
     "how it works",
     "why it matters",
@@ -19,22 +21,29 @@ RESEARCH_ANGLES = [
     "practical examples",
 ]
 
+MIN_ANGLES = 3
+MAX_ANGLES = 8
+
 
 def slug(text: str) -> str:
-    return text.lower().replace(" ", "-")
+    result = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    return result or "section"
 
 
 def run(project_root: Path, config: dict) -> None:
     topic = config["topic"]
     locale = config.get("locales", ["en"])[0]
     fmt = config.get("format", "educational")
+    target_minutes = config.get("video", {}).get("target_duration_minutes", [15, 25])
     registry = Registry.from_project_yaml(project_root)
 
     research_chain = _research_chain(registry)
     text_provider = registry.resolve("text", stage=STAGE)
 
+    angle_names = _propose_angles(text_provider, locale, fmt, topic, target_minutes)
+
     angles = []
-    for angle in RESEARCH_ANGLES:
+    for angle in angle_names:
         sources, provider_used = _search_with_fallback(research_chain, ResearchQuery(query=f"{topic} {angle}"))
         prompt = render_prompt(locale, fmt, "research", topic=topic, angle=angle)
         text_result = text_provider.generate(TextRequest(prompt=prompt, stage=STAGE))
@@ -52,6 +61,35 @@ def run(project_root: Path, config: dict) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "research.json").write_text(json.dumps({"topic": topic, "angles": angles}, indent=2))
     (out_dir / "research.md").write_text(_render_markdown(topic, angles))
+
+
+def _propose_angles(text_provider, locale: str, fmt: str, topic: str, target_minutes: list[int]) -> list[str]:
+    """Sizes the angle list to the target video length instead of a fixed 5
+    (plan/phase-5-length-and-flow.md §5.1) — a longer video needs more distinct
+    angles, not a longer treatment of the same ones. The generate() call is
+    left unwrapped so BudgetExceeded still propagates and stops the pipeline;
+    only the response-parsing step falls back to FALLBACK_ANGLES."""
+    avg_minutes = round(sum(target_minutes) / 2)
+    prompt = render_prompt(locale, fmt, "angles", topic=topic, target_minutes=avg_minutes)
+    result = text_provider.generate(TextRequest(prompt=prompt, stage=STAGE))
+
+    try:
+        parsed = parse_json_response(result.text)
+        angle_names = [str(a).strip() for a in parsed if str(a).strip()]
+    except (ValueError, AttributeError, TypeError):
+        return list(FALLBACK_ANGLES)
+
+    seen: set[str] = set()
+    deduped = []
+    for a in angle_names:
+        key = a.lower()
+        if key not in seen:
+            seen.add(key)
+            deduped.append(a)
+
+    if len(deduped) < MIN_ANGLES:
+        return list(FALLBACK_ANGLES)
+    return deduped[:MAX_ANGLES]
 
 
 def _research_chain(registry: Registry) -> list:

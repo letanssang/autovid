@@ -180,9 +180,41 @@ def _build_slide_content(
         return "title", {"title": beat["text"]}
 
 
+MIN_BEAT_WORDS = 30
+TARGET_BEAT_WORDS = 40
+MAX_BEAT_WORDS = 50
+
+
 def _split_beats(script_text: str) -> list[str]:
+    """Groups sentences into beats aiming for TARGET_BEAT_WORDS (~12-20s at
+    150 wpm) instead of one beat per sentence — a beat every ~7s (the old
+    per-sentence split) changes the visual too fast to watch comfortably on a
+    15-40 min video (plan/phase-5-length-and-flow.md §5.5)."""
     sentences = [s.strip() for s in script_text.replace("\n", " ").split(". ") if s.strip()]
-    return sentences or [script_text]
+    if not sentences:
+        return [script_text]
+
+    beats: list[list[str]] = []
+    current: list[str] = []
+    current_words = 0
+    for sentence in sentences:
+        words = len(sentence.split())
+        if current and current_words + words > MAX_BEAT_WORDS and current_words >= MIN_BEAT_WORDS:
+            beats.append(current)
+            current, current_words = [], 0
+        current.append(sentence)
+        current_words += words
+        if current_words >= TARGET_BEAT_WORDS:
+            beats.append(current)
+            current, current_words = [], 0
+
+    if current:
+        if beats and current_words < MIN_BEAT_WORDS:
+            beats[-1].extend(current)
+        else:
+            beats.append(current)
+
+    return [". ".join(b) for b in beats]
 
 
 def _render_markdown(
