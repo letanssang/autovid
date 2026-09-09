@@ -1,0 +1,41 @@
+# Sửa tay khi vendor đổi giá. Đơn vị: USD.
+# gemini-3.1-flash-lite và gemini-2.5-flash-lite đã verify qua web search 2026-09-09.
+# Các dòng khác (gemini-3.1-flash, gemini-3-pro, claude-sonnet-5, gpt-5.3-chat) CHƯA
+# verify — số cũ để tạm, kiểm tra lại trước khi tin vào estimate_cost() cho các model đó.
+text:
+  gemini/gemini-2.5-flash-lite: { input_per_1m: 0.10, output_per_1m: 0.40 }   # rẻ hơn, vẫn bán chính thức
+  gemini/gemini-3.1-flash-lite: { input_per_1m: 0.25, output_per_1m: 1.50 }   # KHÔNG free — trả tiền thật qua billing
+  gemini/gemini-3.1-flash:      { input_per_1m: 0.50, output_per_1m: 3.00 }   # chưa verify
+  gemini/gemini-3-pro:          { input_per_1m: 1.25, output_per_1m: 10.00 } # chưa verify
+  anthropic/claude-sonnet-5:    { input_per_1m: 3.00, output_per_1m: 15.00 } # chưa verify
+  openai/gpt-5.3-chat:          { input_per_1m: 2.50, output_per_1m: 10.00 } # chưa verify
+  ollama/qwen3-32b:             { input_per_1m: 0.00, output_per_1m: 0.00 }  # chạy local, thật sự $0
+  local/fake:                   { input_per_1m: 0.00, output_per_1m: 0.00 }
+
+research:
+  gemini/grounding:     { per_query: 0.0 }   # free up to 5k queries/month, then $14/1k
+  tavily/search:        { per_query: 0.0 }
+  exa/search:           { per_query: 0.0 }
+  google/custom_search: { per_query: 0.0 }   # free up to 100 queries/day, then $5/1k
+  local/fake:           { per_query: 0.0 }
+
+tts:
+  google/chirp3-hd: { per_1m_chars: 30.00 }   # free up to 1M chars/month
+  elevenlabs/*:     { per_1m_chars: 180.00 }
+  piper/local:      { per_1m_chars: 0.00 }
+  edge/tts:         { per_1m_chars: 0.00 }
+  local/fake:       { per_1m_chars: 0.00 }
+
+image:
+  gemini/nano-banana-2-lite: { per_image: 0.0336, per_image_batch: 0.0168 }
+  google/imagen-4:           { per_image: 0.04, per_image_batch: 0.02 }
+  flux/pro:                  { per_image: 0.05, per_image_batch: 0.05 }
+  sdxl/local:                { per_image: 0.0 }
+
+video_clip:
+  veo/veo-3:   { per_second: 0.35 }
+  kling/v2:    { per_second: 0.28 }
+
+publish:
+  youtube/api_v3: { per_upload: 0.0 }
+  local/only:     { per_upload: 0.0 }

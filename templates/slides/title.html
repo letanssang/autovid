@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+<head><style>{% include "theme.css" %}</style></head>
+<body>
+  <div class="slide">
+    {% if eyebrow %}<div class="eyebrow">{{ eyebrow }}</div>{% endif %}
+    <div class="title">{{ title }}</div>
+    {% if subtitle %}<div class="subtitle">{{ subtitle }}</div>{% endif %}
+  </div>
+</body>
+</html>

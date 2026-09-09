@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+<head><style>{% include "theme.css" %}</style></head>
+<body>
+  <div class="slide">
+    {% if title %}<div class="eyebrow">{{ title }}</div>{% endif %}
+    <div class="title" style="font-size: 56px;">{{ svg | safe }}</div>
+    {% if caption %}<div class="diagram-caption">{{ caption }}</div>{% endif %}
+  </div>
+</body>
+</html>

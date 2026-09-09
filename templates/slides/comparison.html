@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head><style>{% include "theme.css" %}</style></head>
+<body>
+  <div class="slide">
+    {% if title %}<div class="eyebrow">{{ title }}</div>{% endif %}
+    <div class="compare-row">
+      <div class="compare-col">
+        <h3>{{ left_title }}</h3>
+        <ul>{% for item in left_items %}<li>{{ item }}</li>{% endfor %}</ul>
+      </div>
+      <div class="compare-col">
+        <h3>{{ right_title }}</h3>
+        <ul>{% for item in right_items %}<li>{{ item }}</li>{% endfor %}</ul>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,22 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.egg-info/
+dist/
+build/
+.ruff_cache/
+.pytest_cache/
+
+# generated media — keep JSON/MD/YAML artifacts in git, drop large binaries
+projects/*/05_assets/audio/*.mp3
+projects/*/05_assets/audio/*.wav
+projects/*/05_assets/images/*.png
+projects/*/05_assets/slides/*.png
+projects/*/05_assets/slides/*.html
+projects/*/06_render/output.mp4
+projects/*/06_render/_*
+projects/*/07_publish/thumbnail.png
+
+.DS_Store

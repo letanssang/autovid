@@ -1,0 +1,88 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  width: 1920px;
+  height: 1080px;
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  background: #0f1117;
+  color: #f5f5f7;
+  overflow: hidden;
+}
+
+.slide {
+  width: 1920px;
+  height: 1080px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 96px;
+}
+
+.eyebrow {
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7c9cff;
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 88px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.subtitle {
+  font-size: 40px;
+  font-weight: 400;
+  color: #b0b3bd;
+  margin-top: 24px;
+}
+
+pre.code {
+  font-family: "SF Mono", "Fira Code", Consolas, monospace;
+  font-size: 34px;
+  line-height: 1.5;
+  background: #1a1d27;
+  border-radius: 16px;
+  padding: 48px;
+  overflow: hidden;
+  white-space: pre-wrap;
+}
+
+.diagram-caption {
+  font-size: 36px;
+  color: #b0b3bd;
+  margin-top: 32px;
+}
+
+.compare-row {
+  display: flex;
+  gap: 64px;
+  margin-top: 48px;
+}
+
+.compare-col {
+  flex: 1;
+  background: #1a1d27;
+  border-radius: 16px;
+  padding: 48px;
+}
+
+.compare-col h3 {
+  font-size: 40px;
+  margin-bottom: 24px;
+  color: #7c9cff;
+}
+
+.compare-col ul {
+  list-style: none;
+  font-size: 32px;
+  line-height: 1.6;
+}
+
+.compare-col li::before {
+  content: "— ";
+  color: #7c9cff;
+}

@@ -1,0 +1,100 @@
+topic: ""
+project_name: ""
+created_at: ""
+locales: [en]
+
+# Selects prompts/<locale>/<format>/ — each format defines its own research/
+# outline/script/visual prompt set, so the pipeline isn't educational-only by
+# design even though "educational" is the only format built out today.
+# Add a new one later as a sibling directory under prompts/en/, no code change.
+format: educational
+
+video:
+  target_duration_minutes: [15, 25]
+  high_stakes: false          # true for finance/health topics — see AutoVid master plan §6 S1
+  fps: 30                     # settled once here — see plan/phase-3-first-video.md §3.3
+
+budget:
+  cap_usd: 1.00
+  max_ai_images: 15           # hard cap — see master plan §2, §4
+
+# Every entry below is "<vendor>/<model>". Set a capability's `default` to
+# null to disable it entirely (pipeline degrades gracefully — see §9.1).
+# Defaults here are all local/free so a fresh project runs end to end with
+# no API keys and $0 cost; swap in real vendors per-project as needed.
+providers:
+  text:
+    default: local/fake
+    routes: {}                # e.g. { s03_script: anthropic/claude-sonnet-5 }
+    fallback: []
+    # vendor "custom" = any OpenAI-compatible /v1 endpoint (self-hosted router,
+    # LiteLLM, vLLM, LM Studio, OpenRouter, ...) — set default/routes to
+    # "custom/<model-id-the-server-expects>" and point options at it, e.g.:
+    #   default: custom/opus
+    #   options: { base_url: "http://localhost:20128/v1", api_key_env: NINEROUTER_API_KEY }
+    # api_key_env names a variable in .env — the raw key never goes in this file.
+    # Also settable without editing YAML by hand:
+    #   autovid config set <project> text custom/opus --option base_url=http://localhost:20128/v1 --option api_key_env=NINEROUTER_API_KEY
+    # or the dashboard's /projects/<project>/config page.
+  research:
+    default: local/fake
+    fallback: []
+    # vendor "duckduckgo" = free, unofficial HTML-scrape of DuckDuckGo's
+    # results page — no API key needed, real url/title/snippet results. No
+    # ToS coverage and can break if DuckDuckGo changes markup, but it's the
+    # only zero-setup free option currently available (see note below), so
+    # it doubles as the practical default for real research:
+    #   default: duckduckgo/html
+    #
+    # vendor "google" = Google Custom Search JSON API — real url/title/snippet
+    # results, free up to 100 queries/day. AS OF JAN 2026 GOOGLE CLOSED THIS
+    # API TO NEW CUSTOMERS (see developers.google.com/custom-search/v1/overview)
+    # — only usable if you already had access before the cutoff. Existing
+    # customers keep it until 2027-01-01, then must move to Vertex AI Search.
+    # Don't spend time debugging a fresh project's access to this — it's a
+    # hard block, not a config issue. If you do have grandfathered access:
+    #   default: google/custom_search
+    #   options: { cx: "<your-search-engine-id>", api_key_env: GOOGLE_CSE_API_KEY }
+    # api_key_env names a variable in .env — the raw key never goes in this file.
+    #
+    # "fallback" is a list of provider ids tried in order if the default fails
+    # (e.g. quota exhausted, API error):
+    #   default: google/custom_search
+    #   fallback: [duckduckgo/html]
+  tts:
+    default: local/fake
+    options: { voice: en-US-Chirp3-HD-Iapetus, rate: 1.0 }
+    fallback: []
+    # vendor "google" = Chirp 3 HD via Google Cloud TTS — official, generative
+    # voice model with noticeably more natural prosody/emotion than standard
+    # neural TTS. Free up to 1M chars/month then $30/1M. Needs a Google Cloud
+    # API key with the Text-to-Speech API enabled (not subject to the Custom
+    # Search lockout above — different API). This is the practical default for
+    # real narration, with edge/tts below as a free fallback if it errors out
+    # or the free tier is exhausted:
+    #   default: google/chirp3-hd
+    #   options: { voice: en-US-Chirp3-HD-Iapetus, rate: 1.0, api_key_env: GOOGLE_TTS_API_KEY }
+    #   fallback: [edge/tts]
+    # api_key_env names a variable in .env — the raw key never goes in this file.
+    #
+    # vendor "edge" = Microsoft Edge TTS — free, no API key, real audio with
+    # measured duration (core/audio.py::probe_duration_sec). Solid but more
+    # even/less expressive than Chirp 3 HD, and an unofficial API that can
+    # break without notice — that's why it's the fallback above, not the
+    # default. Usable standalone too:
+    #   default: edge/tts
+    #   options: { voice: en-US-AndrewNeural, rate: 1.0 }
+    #   fallback: []   # core/providers/tts/piper.py is a stub (not implemented yet) —
+    #                  # nothing free/offline to fall back to until that's built
+    # api_key_env names a variable in .env — the raw key never goes in this file.
+  image:
+    default: null
+    options: { batch: true, resolution: "1920x1080" }
+    fallback: []
+  video_clip:
+    default: null
+  slides:
+    default: local/html_renderer
+  publish:
+    default: local/only
+    options: { privacy: private }
