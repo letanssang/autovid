@@ -35,17 +35,18 @@ def run(project_root: Path, config: dict) -> None:
     locale = config.get("locales", ["en"])[0]
     fmt = config.get("format", "educational")
     target_minutes = config.get("video", {}).get("target_duration_minutes", [15, 25])
+    revision_note = config.get("_revision_note", "")
     registry = Registry.from_project_yaml(project_root)
 
     research_chain = _research_chain(registry)
     text_provider = registry.resolve("text", stage=STAGE)
 
-    angle_names = _propose_angles(text_provider, locale, fmt, topic, target_minutes)
+    angle_names = _propose_angles(text_provider, locale, fmt, topic, target_minutes, revision_note)
 
     angles = []
     for angle in angle_names:
         sources, provider_used = _search_with_fallback(research_chain, ResearchQuery(query=f"{topic} {angle}"))
-        prompt = render_prompt(locale, fmt, "research", topic=topic, angle=angle)
+        prompt = render_prompt(locale, fmt, "research", topic=topic, angle=angle, revision_note=revision_note)
         text_result = text_provider.generate(TextRequest(prompt=prompt, stage=STAGE))
         angles.append({
             "angle": angle,
@@ -63,14 +64,16 @@ def run(project_root: Path, config: dict) -> None:
     (out_dir / "research.md").write_text(_render_markdown(topic, angles))
 
 
-def _propose_angles(text_provider, locale: str, fmt: str, topic: str, target_minutes: list[int]) -> list[str]:
+def _propose_angles(
+    text_provider, locale: str, fmt: str, topic: str, target_minutes: list[int], revision_note: str = ""
+) -> list[str]:
     """Sizes the angle list to the target video length instead of a fixed 5
     (plan/phase-5-length-and-flow.md §5.1) — a longer video needs more distinct
     angles, not a longer treatment of the same ones. The generate() call is
     left unwrapped so BudgetExceeded still propagates and stops the pipeline;
     only the response-parsing step falls back to FALLBACK_ANGLES."""
     avg_minutes = round(sum(target_minutes) / 2)
-    prompt = render_prompt(locale, fmt, "angles", topic=topic, target_minutes=avg_minutes)
+    prompt = render_prompt(locale, fmt, "angles", topic=topic, target_minutes=avg_minutes, revision_note=revision_note)
     result = text_provider.generate(TextRequest(prompt=prompt, stage=STAGE))
 
     try:

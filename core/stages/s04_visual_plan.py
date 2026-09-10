@@ -18,6 +18,7 @@ def run(project_root: Path, config: dict) -> None:
     locale = config.get("locales", ["en"])[0]
     fmt = config.get("format", "educational")
     max_ai_images = config.get("budget", {}).get("max_ai_images", 15)
+    revision_note = config.get("_revision_note", "")
     registry = Registry.from_project_yaml(project_root)
     text_provider = registry.resolve("text", stage=STAGE)
 
@@ -28,7 +29,7 @@ def run(project_root: Path, config: dict) -> None:
         for i, beat_text in enumerate(_split_beats(section["script"])):
             all_beats.append({"section_id": section["id"], "beat_index": i, "text": beat_text})
 
-    classifications, notes = _classify_beats(text_provider, locale, fmt, all_beats, max_ai_images)
+    classifications, notes = _classify_beats(text_provider, locale, fmt, all_beats, max_ai_images, revision_note)
 
     plan = []
     ai_image_count = 0
@@ -59,7 +60,9 @@ def run(project_root: Path, config: dict) -> None:
             else:
                 ai_image_count += 1
 
-        visual_type, slide_content = _build_slide_content(text_provider, locale, fmt, visual_type, beat, notes)
+        visual_type, slide_content = _build_slide_content(
+            text_provider, locale, fmt, visual_type, beat, notes, revision_note
+        )
         # Content generation can itself downgrade the type (e.g. unparseable
         # code/diagram/comparison JSON falls back to a title slide) — re-check
         # the no-repeat constraint against that final type.
@@ -103,7 +106,7 @@ def _avoid_repeat(visual_type: str, previous_type: str | None, reason: str) -> t
 
 
 def _classify_beats(
-    text_provider, locale: str, fmt: str, all_beats: list[dict], max_ai_images: int
+    text_provider, locale: str, fmt: str, all_beats: list[dict], max_ai_images: int, revision_note: str = ""
 ) -> tuple[list[dict], list[str]]:
     """Classifies all beats in batches of BATCH_SIZE (one LLM call per batch,
     not per beat — see plan/phase-4-right-visuals.md §4.1 on cost). Falls back
@@ -121,6 +124,7 @@ def _classify_beats(
             beats=batch,
             previous_visual_type=previous_type_hint,
             remaining_ai_images=remaining_budget_hint,
+            revision_note=revision_note,
         )
         result = text_provider.generate(TextRequest(prompt=prompt, stage=STAGE))
         try:
@@ -153,7 +157,7 @@ def _classify_beats(
 
 
 def _build_slide_content(
-    text_provider, locale: str, fmt: str, visual_type: str, beat: dict, notes: list[str]
+    text_provider, locale: str, fmt: str, visual_type: str, beat: dict, notes: list[str], revision_note: str = ""
 ) -> tuple[str, dict]:
     """Generates the schema-correct slide content for this beat's visual type
     — the gated stage must produce reviewable content, not just a type label,
@@ -167,7 +171,9 @@ def _build_slide_content(
     if visual_type == "ai_image" or visual_type not in LLM_CONTENT_TYPES:
         return visual_type, {}
 
-    prompt = render_prompt(locale, fmt, "slide_content", visual_type=visual_type, beat_text=beat["text"])
+    prompt = render_prompt(
+        locale, fmt, "slide_content", visual_type=visual_type, beat_text=beat["text"], revision_note=revision_note
+    )
     result = text_provider.generate(TextRequest(prompt=prompt, stage=STAGE))
     try:
         content = parse_json_response(result.text)

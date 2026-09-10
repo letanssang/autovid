@@ -43,7 +43,22 @@ class ProjectState:
 
     def approve(self, stage: str) -> None:
         (self.stage_dir(stage) / ".approved").touch()
+        (self.stage_dir(stage) / ".rejected").unlink(missing_ok=True)
 
     def has_run(self, stage: str) -> bool:
-        artifacts = [p for p in self.stage_dir(stage).iterdir() if p.name != ".approved"]
+        artifacts = [p for p in self.stage_dir(stage).iterdir() if p.name not in (".approved", ".rejected")]
         return len(artifacts) > 0
+
+    def is_rejected(self, stage: str) -> bool:
+        return (self.stage_dir(stage) / ".rejected").exists()
+
+    def reject(self, stage: str, note: str) -> None:
+        (self.stage_dir(stage) / ".rejected").write_text(note)
+        (self.stage_dir(stage) / ".approved").unlink(missing_ok=True)
+
+    def rejection_note(self, stage: str) -> str:
+        path = self.stage_dir(stage) / ".rejected"
+        return path.read_text() if path.exists() else ""
+
+    def clear_rejection(self, stage: str) -> None:
+        (self.stage_dir(stage) / ".rejected").unlink(missing_ok=True)

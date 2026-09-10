@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  width: 1280px;
+  height: 720px;
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  overflow: hidden;
+}
+.thumb {
+  position: relative;
+  width: 1280px;
+  height: 720px;
+  {% if background_uri %}
+  background-image: url('{{ background_uri }}');
+  background-size: cover;
+  background-position: center;
+  {% else %}
+  background: linear-gradient(135deg, #0f1117 0%, #2d3250 50%, #7c9cff 100%);
+  {% endif %}
+}
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.35) 55%, rgba(0,0,0,0.80) 100%);
+}
+.text {
+  position: absolute;
+  left: 56px;
+  right: 56px;
+  bottom: 56px;
+  font-size: {{ font_size_px }}px;
+  font-weight: 900;
+  line-height: 1.05;
+  color: #ffffff;
+  text-shadow: 0 4px 24px rgba(0,0,0,0.85), 0 2px 6px rgba(0,0,0,0.95);
+  letter-spacing: -0.01em;
+}
+</style>
+</head>
+<body>
+  <div class="thumb">
+    <div class="scrim"></div>
+    <div class="text">{{ text }}</div>
+  </div>
+</body>
+</html>

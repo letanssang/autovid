@@ -184,6 +184,7 @@ class SlideRequest:
     content: dict
     out_path: str
     locale: str = "en"
+    size: str = ""  # "WxH" viewport override, e.g. "1280x720" — empty means the renderer's default
 
 
 @dataclass

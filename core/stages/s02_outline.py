@@ -20,6 +20,7 @@ def run(project_root: Path, config: dict) -> None:
     locale = config.get("locales", ["en"])[0]
     fmt = config.get("format", "educational")
     target_minutes = config.get("video", {}).get("target_duration_minutes", [15, 25])
+    revision_note = config.get("_revision_note", "")
     registry = Registry.from_project_yaml(project_root)
     text_provider = registry.resolve("text", stage=STAGE)
 
@@ -44,6 +45,7 @@ def run(project_root: Path, config: dict) -> None:
                 locale, fmt, "outline",
                 chapter=chapter_title, section=f"Part {i}",
                 research=research_by_angle.get(angle, ""),
+                revision_note=revision_note,
             )
             result = text_provider.generate(TextRequest(prompt=prompt, stage=STAGE))
             sections.append({"id": f"{slug(angle)}-{i}", "title": result.text.strip()})

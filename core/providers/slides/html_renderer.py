@@ -33,12 +33,14 @@ class HTMLSlideRenderer:
         html_path = out_path.with_suffix(".html")
         html_path.write_text(html)
 
+        width, height = self._parse_size(req.size)
+
         try:
             from playwright.sync_api import sync_playwright
 
             with sync_playwright() as p:
                 browser = p.chromium.launch()
-                page = browser.new_page(viewport={"width": 1920, "height": 1080})
+                page = browser.new_page(viewport={"width": width, "height": height})
                 page.goto(html_path.as_uri())
                 page.screenshot(path=str(out_path))
                 browser.close()
@@ -49,6 +51,16 @@ class HTMLSlideRenderer:
             return SlideResult(image_path=str(out_path), ok=False, error=str(e))
 
         return SlideResult(image_path=str(out_path))
+
+    @staticmethod
+    def _parse_size(size: str) -> tuple[int, int]:
+        if not size:
+            return 1920, 1080
+        w, _, h = size.lower().partition("x")
+        try:
+            return int(w), int(h)
+        except ValueError:
+            return 1920, 1080
 
 
 def get_adapter(model: str, options: dict) -> HTMLSlideRenderer:

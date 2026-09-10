@@ -8,7 +8,7 @@ from pathlib import Path
 import typer
 import yaml
 
-from core import manual_assets
+from core import manual_assets, packaging
 from core.env import load_env
 from core.providers.registry import BudgetExceeded
 from core.stages import STAGE_RUNNERS
@@ -119,7 +119,9 @@ def run(
     if from_stage:
         start_idx = STAGES.index(from_stage)
     else:
-        start_idx = next((i for i, s in enumerate(STAGES) if not state.has_run(s)), len(STAGES))
+        start_idx = next(
+            (i for i, s in enumerate(STAGES) if not state.has_run(s) or state.is_rejected(s)), len(STAGES)
+        )
         if start_idx == len(STAGES):
             typer.echo("All stages already ran. Use --from <stage> to re-run one.")
             raise typer.Exit(0)
@@ -135,6 +137,11 @@ def run(
                 )
                 raise typer.Exit(1)
 
+        was_rejected = state.is_rejected(stage)
+        config["_revision_note"] = state.rejection_note(stage) if was_rejected else ""
+        if was_rejected:
+            typer.secho(f"  re-running after rejection: {config['_revision_note']}", fg=typer.colors.YELLOW)
+
         typer.echo(f"Running {stage}...")
         try:
             if stage == "06_render":
@@ -148,6 +155,9 @@ def run(
             typer.secho(f"Stopped: {e}", fg=typer.colors.RED)
             raise typer.Exit(1)
         typer.secho("  done", fg=typer.colors.GREEN)
+
+        if was_rejected:
+            state.clear_rejection(stage)
 
         if stage == "05_assets":
             status_path = root / "05_assets" / "slide_render_status.json"
@@ -212,6 +222,38 @@ def approve(project: str, stage: str) -> None:
 
     state.approve(stage)
     typer.secho(f"Approved '{stage}' for '{project}'", fg=typer.colors.GREEN)
+
+
+@app.command()
+def reject(
+    project: str,
+    stage: str,
+    note: str = typer.Option(..., "--note", help="Reason for rejecting — fed into the stage's LLM prompts on rerun"),
+) -> None:
+    """Reject a gated stage with a note; `autovid run` will re-run it with the note next time."""
+    root = _project_root(project)
+    if stage not in GATED_STAGES:
+        typer.secho(f"'{stage}' has no approval gate", fg=typer.colors.RED)
+        raise typer.Exit(1)
+
+    state = ProjectState(root=root)
+    state.reject(stage, note)
+    typer.secho(
+        f"Rejected '{stage}' for '{project}' — rerun with: autovid run {project} --from {stage}",
+        fg=typer.colors.YELLOW,
+    )
+
+
+@app.command()
+def package(project: str) -> None:
+    """Assemble video/thumbnail/subtitles/description/tags into 07_publish/upload/ for manual YouTube upload."""
+    root = _project_root(project)
+    try:
+        upload_dir = packaging.package(root)
+    except FileNotFoundError as e:
+        typer.secho(f"Cannot package yet: {e}", fg=typer.colors.RED)
+        raise typer.Exit(1)
+    typer.secho(f"Packaged '{project}' -> {upload_dir}", fg=typer.colors.GREEN)
 
 
 @config_app.command("show")

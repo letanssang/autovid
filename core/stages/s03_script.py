@@ -22,6 +22,7 @@ def run(project_root: Path, config: dict) -> None:
     locale = config.get("locales", ["en"])[0]
     fmt = config.get("format", "educational")
     target_minutes = config.get("video", {}).get("target_duration_minutes", [15, 25])
+    revision_note = config.get("_revision_note", "")
     registry = Registry.from_project_yaml(project_root)
     text_provider = registry.resolve("text", stage=STAGE)
 
@@ -52,6 +53,7 @@ def run(project_root: Path, config: dict) -> None:
             target_word_count=target_word_count,
             research=research_by_angle.get(angle, ""),
             spine="\n".join(spine_lines) or "(none yet — this is the opening section)",
+            revision_note=revision_note,
         )
         word_count = len(script_text.split())
         deviation = abs(word_count - target_word_count) / max(target_word_count, 1)
@@ -84,10 +86,12 @@ def run(project_root: Path, config: dict) -> None:
     outro_entry = _generate_special_section(
         text_provider, locale, fmt, "outro",
         topic=topic, outline_summary=outline_summary, spine=full_spine, target_sec=OUTRO_TARGET_SEC,
+        revision_note=revision_note,
     )
     hook_entry = _generate_special_section(
         text_provider, locale, fmt, "hook",
         topic=topic, outline_summary=outline_summary, spine=full_spine, target_sec=HOOK_TARGET_SEC,
+        revision_note=revision_note,
     )
     sections_out.append(outro_entry)
     sections_out.insert(0, hook_entry)
@@ -101,6 +105,7 @@ def run(project_root: Path, config: dict) -> None:
 def _generate_section_script(
     text_provider, locale: str, fmt: str, *,
     section_title: str, target_duration_sec: int, target_word_count: int, research: str, spine: str,
+    revision_note: str = "",
 ) -> tuple[str, list[str], int]:
     """Generates narration for one section, retrying up to MAX_RETRIES times
     when the word count deviates from target by more than WORD_COUNT_TOLERANCE
@@ -126,6 +131,7 @@ def _generate_section_script(
             length_instruction=length_instruction,
             previous_draft=previous_draft,
             previous_word_count=previous_word_count,
+            revision_note=revision_note,
         )
         result = text_provider.generate(TextRequest(prompt=prompt, stage=STAGE))
         script_text, key_terms = _split_script_and_terms(result.text.strip())
@@ -153,7 +159,7 @@ def _generate_section_script(
 
 def _generate_special_section(
     text_provider, locale: str, fmt: str, kind: str, *,
-    topic: str, outline_summary: str, spine: str, target_sec: int,
+    topic: str, outline_summary: str, spine: str, target_sec: int, revision_note: str = "",
 ) -> dict:
     """Single-shot generation for the hook/outro — no word-count retry loop,
     per plan/phase-5-length-and-flow.md §5.3 (only §5.2's main sections get
@@ -162,6 +168,7 @@ def _generate_special_section(
     prompt = render_prompt(
         locale, fmt, kind,
         topic=topic, outline_summary=outline_summary, spine=spine, target_word_count=target_word_count,
+        revision_note=revision_note,
     )
     result = text_provider.generate(TextRequest(prompt=prompt, stage=STAGE))
     script_text, _key_terms = _split_script_and_terms(result.text.strip())

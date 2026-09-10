@@ -12,16 +12,26 @@ PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 _FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
 
 
-def render_prompt(locale: str, fmt: str, name: str, **context) -> str:
+def render_prompt(locale: str, fmt: str, name: str, *, revision_note: str = "", **context) -> str:
     """Renders prompts/<locale>/<fmt>/<name>.md — prompts never live in Python f-strings.
 
     `fmt` is the video format (e.g. "educational"). New formats (narrative, listicle,
     review, ...) are added as sibling directories under prompts/<locale>/ without
     touching stage code — see project.yaml's top-level `format` field.
+
+    `revision_note` is the human reviewer's reason when they reject a gated stage
+    (see core.state.ProjectState.reject) — appended once here rather than threaded
+    into every individual .md template, so any prompt call can opt in for free.
     """
     env = Environment(loader=FileSystemLoader(str(PROMPTS_DIR / locale / fmt)))
     template = env.get_template(f"{name}.md")
-    return template.render(**context)
+    rendered = template.render(**context)
+    if revision_note:
+        rendered += (
+            "\n\nA human reviewer rejected the previous output and left this note — "
+            f"address it in this revision:\n{revision_note}"
+        )
+    return rendered
 
 
 def parse_json_response(text: str) -> Any:

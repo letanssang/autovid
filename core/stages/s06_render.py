@@ -38,6 +38,7 @@ def run(project_root: Path, config: dict, preview_sec: float | None = None, prog
             start, end = cursor_sec, cursor_sec + beat_duration
             timeline.append({
                 "beat_id": beat_id,
+                "section_id": section["id"],
                 "asset_path": visual.get("asset_path"),
                 "visual_type": visual.get("type", "b_roll"),
                 "start_sec": round(start, 2),
